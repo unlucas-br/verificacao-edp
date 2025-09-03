@@ -232,6 +232,40 @@
       margin-top: .5rem;
     }
 
+    /* Estilo personalizado para o botão de arquivo */
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .file-input-wrapper:hover {
+      background: #e55a00;
+      transform: scale(1.05);
+    }
+
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+    }
+
+    .file-input-wrapper .file-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
     @media (max-width: 768px) {
       .wrap {
         max-width: 100%;
@@ -267,9 +301,11 @@
     </main>
     <div class="input-box">
       <input id="userInput" type="text" placeholder="Cole os dados aqui ou use o botão para carregar arquivo..." />
-      <button onclick="document.getElementById('fileInput').click()" title="Carregar arquivo">📎</button>
-      <input id="fileInput" type="file" accept=".xlsx,.csv,.txt" />
-      <button id="sendBtn" onclick="processData()" title="Processar dados">➤</button>
+      <div class="file-input-wrapper">
+        <input id="fileInput" type="file" accept=".xlsx,.csv,.txt" />
+        <label for="fileInput" class="file-label">📎</label>
+      </div>
+      <button id="sendBtn" title="Processar dados">➤</button>
     </div>
   </div>
 
@@ -436,7 +472,7 @@
       const downloadBtn = document.createElement('button');
       downloadBtn.className = 'download';
       downloadBtn.textContent = `💾 Download CSV (${dadosProcessados.length} registros)`;
-      downloadBtn.onclick = downloadCSV;
+      downloadBtn.addEventListener('click', downloadCSV);
       botMsg.appendChild(downloadBtn);
 
       chat.appendChild(botMsg);
@@ -463,45 +499,80 @@
       const a = document.createElement('a');
       a.href = url;
       a.download = `enderecos_filtrados_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
 
-    // Event listener para upload de arquivo
-    document.getElementById('fileInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    // Inicialização quando DOM carregar
+    document.addEventListener('DOMContentLoaded', function() {
+      // Event listener para upload de arquivo
+      const fileInput = document.getElementById('fileInput');
+      const userInput = document.getElementById('userInput');
+      const sendBtn = document.getElementById('sendBtn');
 
-      const ext = file.name.split('.').pop().toLowerCase();
-      const reader = new FileReader();
+      fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-      reader.onload = (ev) => {
-        try {
-          if (ext === 'xlsx') {
-            const wb = XLSX.read(ev.target.result, { type: 'binary' });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            conteudoArquivo = XLSX.utils.sheet_to_csv(ws, { trim: true });
-          } else {
-            conteudoArquivo = ev.target.result;
-          }
-          document.getElementById('userInput').value = `[Arquivo carregado: ${file.name}]`;
-        } catch (error) {
-          alert('Erro ao carregar arquivo: ' + error.message);
+        console.log('Arquivo selecionado:', file.name);
+
+        const ext = file.name.split('.').pop().toLowerCase();
+        
+        if (!['xlsx', 'csv', 'txt'].includes(ext)) {
+          alert('Tipo de arquivo não suportado. Use .xlsx, .csv ou .txt');
+          return;
         }
-      };
 
-      if (ext === 'xlsx') {
-        reader.readAsBinaryString(file);
-      } else {
-        reader.readAsText(file, 'UTF-8');
-      }
-    });
+        const reader = new FileReader();
 
-    // Enter para processar
-    document.getElementById('userInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        processData();
-      }
+        reader.onload = function(ev) {
+          try {
+            if (ext === 'xlsx') {
+              if (typeof XLSX === 'undefined') {
+                alert('Biblioteca XLSX não carregada. Recarregue a página e tente novamente.');
+                return;
+              }
+              const wb = XLSX.read(ev.target.result, { type: 'binary' });
+              const ws = wb.Sheets[wb.SheetNames[0]];
+              conteudoArquivo = XLSX.utils.sheet_to_csv(ws, { trim: true });
+            } else {
+              conteudoArquivo = ev.target.result;
+            }
+            
+            userInput.value = `📎 Arquivo carregado: ${file.name} (${Math.round(file.size/1024)}KB)`;
+            console.log('Conteúdo do arquivo carregado:', conteudoArquivo.substring(0, 200) + '...');
+            
+            // Reset do input file
+            fileInput.value = '';
+          } catch (error) {
+            console.error('Erro ao carregar arquivo:', error);
+            alert('Erro ao carregar arquivo: ' + error.message);
+          }
+        };
+
+        reader.onerror = function() {
+          console.error('Erro ao ler arquivo');
+          alert('Erro ao ler o arquivo. Tente novamente.');
+        };
+
+        if (ext === 'xlsx') {
+          reader.readAsBinaryString(file);
+        } else {
+          reader.readAsText(file, 'UTF-8');
+        }
+      });
+
+      // Enter para processar
+      userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          processData();
+        }
+      });
+
+      // Click no botão processar
+      sendBtn.addEventListener('click', processData);
     });
   </script>
 </body>

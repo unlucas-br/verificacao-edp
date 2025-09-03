@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verificador EDP - Atuamax</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --card: #222222;
+      --text: #f0f0f0;
+      --sub: #a0a0a0;
+      --accent: #ff6600;
+      --border: #444444;
+      --success: #4ade80;
+      --error: #f87171;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      padding: 0;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 1200px;
+      height: 100vh;
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    }
+
+    header {
+      padding: 1rem 1.25rem;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+      flex-shrink: 0;
+      font-size: 1.1rem;
+    }
+
+    main {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) #2a2a2a;
+    }
+
+    main::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    main::-webkit-scrollbar-thumb {
+      background-color: var(--accent);
+      border-radius: 4px;
+    }
+
+    main::-webkit-scrollbar-track {
+      background: #2a2a2a;
+    }
+
+    .msg {
+      max-width: 95%;
+      padding: .75rem 1rem;
+      border-radius: 18px;
+      font-size: .95rem;
+      line-height: 1.5;
+    }
+
+    .user {
+      background: var(--accent);
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 6px;
+    }
+
+    .bot {
+      background: #333333;
+      align-self: flex-start;
+      border-bottom-left-radius: 6px;
+    }
+
+    .time {
+      font-size: .7rem;
+      opacity: .7;
+      display: block;
+      margin-top: .5rem;
+      text-align: right;
+    }
+
+    .input-box {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .75rem 1rem;
+      border-top: 1px solid var(--border);
+      background: #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: .7rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      outline: none;
+      font-size: .95rem;
+      background: #1a1a1a;
+      color: var(--text);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    button {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all .2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #e55a00;
+      transform: scale(1.05);
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .stats {
+      background: #2a2a2a;
+      padding: .75rem 1rem;
+      border-radius: 8px;
+      margin: .5rem 0;
+      font-size: .9rem;
+      border-left: 4px solid var(--accent);
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: .5rem 0;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .8rem;
+      min-width: 1000px;
+    }
+
+    th, td {
+      padding: .5rem;
+      border: 1px solid var(--border);
+      text-align: left;
+      word-wrap: break-word;
+      max-width: 150px;
+    }
+
+    th {
+      background: #333333;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .cep-valid {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .download {
+      margin-top: .75rem;
+      font-size: .85rem;
+      padding: .6rem 1.2rem;
+      border-radius: 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      width: auto;
+      height: auto;
+    }
+
+    .download:hover {
+      background: #e55a00;
+    }
+
+    .prefixos-info {
+      font-size: .85rem;
+      color: var(--sub);
+      margin-top: .5rem;
+    }
+
+    @media (max-width: 768px) {
+      .wrap {
+        max-width: 100%;
+      }
+      
+      header {
+        font-size: .95rem;
+        padding: .75rem 1rem;
+      }
+      
+      table {
+        font-size: .75rem;
+        min-width: 800px;
+      }
+      
+      th, td {
+        padding: .4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>🔍 Verificador EDP - Atuamax</header>
+    <main id="chat">
+      <div class="msg bot">
+        📂 <strong>Envie um arquivo .xlsx, .csv ou .txt com endereços</strong><br>
+        <div class="prefixos-info">
+          <strong>Prefixos CEP válidos:</strong><br>
+          07124, 07130, 07131, 07132, 07134, 07135, 07087, 07072, 07073, 07074, 07075, 07076, 07077, 07080, 07081, 07082, 07083, 07084, 07085
+        </div>
+      </div>
+    </main>
+    <div class="input-box">
+      <input id="userInput" type="text" placeholder="Cole os dados aqui ou use o botão para carregar arquivo..." />
+      <button onclick="document.getElementById('fileInput').click()" title="Carregar arquivo">📎</button>
+      <input id="fileInput" type="file" accept=".xlsx,.csv,.txt" />
+      <button id="sendBtn" onclick="processData()" title="Processar dados">➤</button>
+    </div>
+  </div>
+
+  <script>
+    const prefixosValidos = ['07124', '07130', '07131', '07132', '07134', '07135', '07087', '07072', '07073', '07074', '07075', '07076', '07077', '07080', '07081', '07082', '07083', '07084', '07085'];
+    let conteudoArquivo = '';
+    let dadosProcessados = [];
+
+    function extrairCEP(linha) {
+      // Buscar padrões de CEP mais precisos
+      const patterns = [
+        /\b(\d{5})-(\d{3})\b/,  // 12345-678 (formato padrão)
+        /\b(\d{5})(\d{3})\b/,   // 12345678 (sem hífen)
+      ];
+      
+      for (let pattern of patterns) {
+        const match = linha.match(pattern);
+        if (match) {
+          return match[1] + match[2]; // Retorna 8 dígitos
+        }
+      }
+      return null;
+    }
+
+    function detectarSeparador(linha) {
+      const virgulas = (linha.match(/,/g) || []).length;
+      const pontosVirgula = (linha.match(/;/g) || []).length;
+      const tabs = (linha.match(/\t/g) || []).length;
+      
+      if (tabs > virgulas && tabs > pontosVirgula) return '\t';
+      if (pontosVirgula > virgulas) return ';';
+      return ',';
+    }
+
+    function filtrarPorPrefixo(conteudo) {
+      const linhas = conteudo.split('\n').map(l => l.trim()).filter(l => l);
+      if (!linhas.length) return { cabecalho: [], dados: [] };
+
+      // Detectar separador da primeira linha
+      const separador = detectarSeparador(linhas[0]);
+      
+      // Primeira linha como cabeçalho
+      const cabecalho = linhas[0].split(separador).map(col => col.trim().replace(/"/g, ''));
+      
+      const dadosFiltrados = [];
+      const linhasProcessadas = new Set(); // Para evitar duplicatas exatas
+      
+      // Processar linhas de dados
+      linhas.slice(1).forEach((linha, index) => {
+        // Evitar linhas duplicadas
+        if (linhasProcessadas.has(linha)) return;
+        
+        const cep = extrairCEP(linha);
+        if (cep && prefixosValidos.includes(cep.substring(0, 5))) {
+          const valores = linha.split(separador).map(val => val.trim().replace(/"/g, ''));
+          
+          // Criar objeto com os dados
+          const objeto = {};
+          cabecalho.forEach((col, i) => {
+            objeto[col] = valores[i] || '';
+          });
+          
+          // Adicionar CEP formatado se não existir
+          if (!objeto.CEP && !objeto.cep) {
+            objeto.CEP = `${cep.substring(0, 5)}-${cep.substring(5)}`;
+          }
+          
+          dadosFiltrados.push(objeto);
+          linhasProcessadas.add(linha);
+        }
+      });
+
+      return { cabecalho, dados: dadosFiltrados };
+    }
+
+    function getTime() {
+      return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function processData() {
+      const input = document.getElementById('userInput');
+      const texto = input.value.trim();
+      const chat = document.getElementById('chat');
+      const btn = document.getElementById('sendBtn');
+
+      if (!texto && !conteudoArquivo) {
+        alert('Por favor, carregue um arquivo ou cole os dados.');
+        return;
+      }
+
+      const dados = conteudoArquivo || texto;
+      conteudoArquivo = '';
+
+      btn.disabled = true;
+
+      // Mensagem do usuário
+      const userMsg = document.createElement('div');
+      userMsg.className = 'msg user';
+      userMsg.innerHTML = `📄 Processando dados...<span class="time">${getTime()}</span>`;
+      chat.appendChild(userMsg);
+      input.value = '';
+
+      // Processar dados
+      const resultado = filtrarPorPrefixo(dados);
+      dadosProcessados = resultado.dados;
+
+      if (dadosProcessados.length === 0) {
+        const botMsg = document.createElement('div');
+        botMsg.className = 'msg bot';
+        botMsg.innerHTML = `
+          <div class="stats">
+            ❌ <strong>Nenhum endereço encontrado com os prefixos válidos</strong><br>
+            Verifique se os dados contêm CEPs no formato correto (12345-678 ou 12345678)
+          </div>
+          <span class="time">${getTime()}</span>
+        `;
+        chat.appendChild(botMsg);
+        btn.disabled = false;
+        chat.scrollTop = chat.scrollHeight;
+        return;
+      }
+
+      // Construir tabela HTML
+      const colunas = Object.keys(dadosProcessados[0]);
+      let tabelaHtml = `
+        <div class="stats">
+          ✅ <strong>Filtragem concluída com sucesso!</strong><br>
+          📊 Total de registros válidos encontrados: <strong>${dadosProcessados.length}</strong>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                ${colunas.map(col => `<th>${col}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      dadosProcessados.forEach(item => {
+        tabelaHtml += '<tr>';
+        colunas.forEach(coluna => {
+          let valor = item[coluna] || '';
+          // Destacar CEPs
+          if (coluna === 'CEP' || coluna === 'cep') {
+            valor = `<span class="cep-valid">${valor}</span>`;
+          }
+          tabelaHtml += `<td>${valor}</td>`;
+        });
+        tabelaHtml += '</tr>';
+      });
+
+      tabelaHtml += `
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      const botMsg = document.createElement('div');
+      botMsg.className = 'msg bot';
+      botMsg.innerHTML = `${tabelaHtml}<span class="time">${getTime()}</span>`;
+
+      // Botão de download
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className = 'download';
+      downloadBtn.textContent = `💾 Download CSV (${dadosProcessados.length} registros)`;
+      downloadBtn.onclick = downloadCSV;
+      botMsg.appendChild(downloadBtn);
+
+      chat.appendChild(botMsg);
+      btn.disabled = false;
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function downloadCSV() {
+      if (!dadosProcessados || dadosProcessados.length === 0) return;
+
+      const colunas = Object.keys(dadosProcessados[0]);
+      let csv = colunas.join(',') + '\n';
+
+      dadosProcessados.forEach(item => {
+        const linha = colunas.map(col => {
+          const valor = (item[col] || '').toString().replace(/"/g, '""');
+          return `"${valor}"`;
+        }).join(',');
+        csv += linha + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `enderecos_filtrados_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Event listener para upload de arquivo
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const reader = new FileReader();
+
+      reader.onload = (ev) => {
+        try {
+          if (ext === 'xlsx') {
+            const wb = XLSX.read(ev.target.result, { type: 'binary' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            conteudoArquivo = XLSX.utils.sheet_to_csv(ws, { trim: true });
+          } else {
+            conteudoArquivo = ev.target.result;
+          }
+          document.getElementById('userInput').value = `[Arquivo carregado: ${file.name}]`;
+        } catch (error) {
+          alert('Erro ao carregar arquivo: ' + error.message);
+        }
+      };
+
+      if (ext === 'xlsx') {
+        reader.readAsBinaryString(file);
+      } else {
+        reader.readAsText(file, 'UTF-8');
+      }
+    });
+
+    // Enter para processar
+    document.getElementById('userInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        processData();
+      }
+    });
+  </script>
+</body>
+</html>

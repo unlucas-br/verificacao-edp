@@ -453,6 +453,14 @@
           if (coluna === 'CEP' || coluna === 'cep') {
             valor = `<span class="cep-valid">${valor}</span>`;
           }
+          // Destacar números de residência
+          if (coluna === 'Numero' || coluna === 'numero' || coluna === 'NUMERO') {
+            valor = `<strong style="color: #60a5fa;">${valor}</strong>`;
+          }
+          // Destacar endereços
+          if (coluna === 'Endereco' || coluna === 'endereco' || coluna === 'ENDERECO') {
+            valor = `<strong style="color: #fbbf24;">${valor}</strong>`;
+          }
           tabelaHtml += `<td>${valor}</td>`;
         });
         tabelaHtml += '</tr>';

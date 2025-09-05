@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Verificador EDP - Atuamax</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificador de Obras EDP – Atuamax</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root {
@@ -41,7 +41,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
     }
 
     header {
@@ -232,7 +232,6 @@
       margin-top: .5rem;
     }
 
-    /* Estilo personalizado para o botão de arquivo */
     .file-input-wrapper {
       position: relative;
       overflow: hidden;
@@ -270,17 +269,17 @@
       .wrap {
         max-width: 100%;
       }
-      
+
       header {
         font-size: .95rem;
         padding: .75rem 1rem;
       }
-      
+
       table {
         font-size: .75rem;
         min-width: 800px;
       }
-      
+
       th, td {
         padding: .4rem;
       }
@@ -289,298 +288,200 @@
 </head>
 <body>
   <div class="wrap">
-    <header>🔍 Verificador EDP - Atuamax</header>
+    <header>Verificador EDP - Atuamax</header>
+
     <main id="chat">
       <div class="msg bot">
-        📂 <strong>Envie um arquivo .xlsx, .csv ou .txt com endereços</strong><br>
+        📂 <strong>Envie um arquivo .xlsx com obras</strong><br>
         <div class="prefixos-info">
           <strong>Prefixos CEP válidos:</strong><br>
           07124, 07130, 07131, 07132, 07134, 07135, 07087, 07072, 07073, 07074, 07075, 07076, 07077, 07080, 07081, 07082, 07083, 07084, 07085
         </div>
       </div>
     </main>
-    <div class="input-box">
+
+    <div class="input-box" id="dropZone">
       <input id="userInput" type="text" placeholder="Cole os dados aqui ou use o botão para carregar arquivo..." />
       <div class="file-input-wrapper">
-        <input id="fileInput" type="file" accept=".xlsx,.csv,.txt" />
+        <input id="fileInput" type="file" accept=".xlsx,.xls">
         <label for="fileInput" class="file-label">📎</label>
       </div>
-      <button id="sendBtn" title="Processar dados">➤</button>
+      <button id="sendBtn" title="Processar">➤</button>
     </div>
   </div>
 
   <script>
-    const prefixosValidos = ['07124', '07130', '07131', '07132', '07134', '07135', '07087', '07072', '07073', '07074', '07075', '07076', '07077', '07080', '07081', '07082', '07083', '07084', '07085'];
-    let conteudoArquivo = '';
-    let dadosProcessados = [];
+    const prefixos = [
+      '07124','07130','07131','07132','07134','07135','07087',
+      '07072','07073','07074','07075','07076','07077','07080',
+      '07081','07082','07083','07084','07085'
+    ];
+    let currentData = [];
+    let filteredData = [];
 
-    function extrairCEP(linha) {
-      // Buscar padrões de CEP mais precisos
-      const patterns = [
-        /\b(\d{5})-(\d{3})\b/,  // 12345-678 (formato padrão)
-        /\b(\d{5})(\d{3})\b/,   // 12345678 (sem hífen)
-      ];
-      
-      for (let pattern of patterns) {
-        const match = linha.match(pattern);
-        if (match) {
-          return match[1] + match[2]; // Retorna 8 dígitos
-        }
-      }
-      return null;
-    }
-
-    function detectarSeparador(linha) {
-      const virgulas = (linha.match(/,/g) || []).length;
-      const pontosVirgula = (linha.match(/;/g) || []).length;
-      const tabs = (linha.match(/\t/g) || []).length;
-      
-      if (tabs > virgulas && tabs > pontosVirgula) return '\t';
-      if (pontosVirgula > virgulas) return ';';
-      return ',';
-    }
-
-    function filtrarPorPrefixo(conteudo) {
-      const linhas = conteudo.split('\n').map(l => l.trim()).filter(l => l);
-      if (!linhas.length) return { cabecalho: [], dados: [] };
-
-      // Detectar separador da primeira linha
-      const separador = detectarSeparador(linhas[0]);
-      
-      // Primeira linha como cabeçalho
-      const cabecalho = linhas[0].split(separador).map(col => col.trim().replace(/"/g, ''));
-      
-      const dadosFiltrados = [];
-      const linhasProcessadas = new Set(); // Para evitar duplicatas exatas
-      
-      // Processar linhas de dados
-      linhas.slice(1).forEach((linha, index) => {
-        // Evitar linhas duplicadas
-        if (linhasProcessadas.has(linha)) return;
-        
-        const cep = extrairCEP(linha);
-        if (cep && prefixosValidos.includes(cep.substring(0, 5))) {
-          const valores = linha.split(separador).map(val => val.trim().replace(/"/g, ''));
-          
-          // Criar objeto com os dados
-          const objeto = {};
-          cabecalho.forEach((col, i) => {
-            objeto[col] = valores[i] || '';
-          });
-          
-          // Adicionar CEP formatado se não existir
-          if (!objeto.CEP && !objeto.cep) {
-            objeto.CEP = `${cep.substring(0, 5)}-${cep.substring(5)}`;
-          }
-          
-          dadosFiltrados.push(objeto);
-          linhasProcessadas.add(linha);
-        }
-      });
-
-      return { cabecalho, dados: dadosFiltrados };
-    }
+    const fileInput = document.getElementById('fileInput');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chat = document.getElementById('chat');
+    const dropZone = document.getElementById('dropZone');
 
     function getTime() {
       return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     }
 
-    function processData() {
-      const input = document.getElementById('userInput');
-      const texto = input.value.trim();
-      const chat = document.getElementById('chat');
-      const btn = document.getElementById('sendBtn');
-
-      if (!texto && !conteudoArquivo) {
-        alert('Por favor, carregue um arquivo ou cole os dados.');
-        return;
-      }
-
-      const dados = conteudoArquivo || texto;
-      conteudoArquivo = '';
-
-      btn.disabled = true;
-
-      // Mensagem do usuário
-      const userMsg = document.createElement('div');
-      userMsg.className = 'msg user';
-      userMsg.innerHTML = `📄 Processando dados...<span class="time">${getTime()}</span>`;
-      chat.appendChild(userMsg);
-      input.value = '';
-
-      // Processar dados
-      const resultado = filtrarPorPrefixo(dados);
-      dadosProcessados = resultado.dados;
-
-      if (dadosProcessados.length === 0) {
-        const botMsg = document.createElement('div');
-        botMsg.className = 'msg bot';
-        botMsg.innerHTML = `
-          <div class="stats">
-            ❌ <strong>Nenhum endereço encontrado com os prefixos válidos</strong><br>
-            Verifique se os dados contêm CEPs no formato correto (12345-678 ou 12345678)
-          </div>
-          <span class="time">${getTime()}</span>
-        `;
-        chat.appendChild(botMsg);
-        btn.disabled = false;
-        chat.scrollTop = chat.scrollHeight;
-        return;
-      }
-
-      // Construir tabela HTML
-      const colunas = Object.keys(dadosProcessados[0]);
-      let tabelaHtml = `
-        <div class="stats">
-          ✅ <strong>Filtragem concluída com sucesso!</strong><br>
-          📊 Total de registros válidos encontrados: <strong>${dadosProcessados.length}</strong>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                ${colunas.map(col => `<th>${col}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-      `;
-
-      dadosProcessados.forEach(item => {
-        tabelaHtml += '<tr>';
-        colunas.forEach(coluna => {
-          let valor = item[coluna] || '';
-          // Destacar CEPs
-          if (coluna === 'CEP' || coluna === 'cep') {
-            valor = `<span class="cep-valid">${valor}</span>`;
-          }
-          // Destacar números de residência
-          if (coluna === 'Numero' || coluna === 'numero' || coluna === 'NUMERO') {
-            valor = `<strong style="color: #60a5fa;">${valor}</strong>`;
-          }
-          // Destacar endereços
-          if (coluna === 'Endereco' || coluna === 'endereco' || coluna === 'ENDERECO') {
-            valor = `<strong style="color: #fbbf24;">${valor}</strong>`;
-          }
-          tabelaHtml += `<td>${valor}</td>`;
-        });
-        tabelaHtml += '</tr>';
-      });
-
-      tabelaHtml += `
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      const botMsg = document.createElement('div');
-      botMsg.className = 'msg bot';
-      botMsg.innerHTML = `${tabelaHtml}<span class="time">${getTime()}</span>`;
-
-      // Botão de download
-      const downloadBtn = document.createElement('button');
-      downloadBtn.className = 'download';
-      downloadBtn.textContent = `💾 Download CSV (${dadosProcessados.length} registros)`;
-      downloadBtn.addEventListener('click', downloadCSV);
-      botMsg.appendChild(downloadBtn);
-
-      chat.appendChild(botMsg);
-      btn.disabled = false;
+    function addMessage(text, sender = 'bot') {
+      const div = document.createElement('div');
+      div.className = 'msg ' + sender;
+      div.innerHTML = text + '<span class="time">' + getTime() + '</span>';
+      chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
 
-    function downloadCSV() {
-      if (!dadosProcessados || dadosProcessados.length === 0) return;
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.style.border = '2px dashed var(--accent)';
+    });
 
-      const colunas = Object.keys(dadosProcessados[0]);
-      let csv = colunas.join(',') + '\n';
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.border = 'none';
+    });
 
-      dadosProcessados.forEach(item => {
-        const linha = colunas.map(col => {
-          const valor = (item[col] || '').toString().replace(/"/g, '""');
-          return `"${valor}"`;
-        }).join(',');
-        csv += linha + '\n';
-      });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.style.border = 'none';
+      const file = e.dataTransfer.files[0];
+      if (file) processFile(file);
+    });
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `enderecos_filtrados_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) processFile(file);
+    });
+
+    function processFile(file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          if (!jsonData.length) throw new Error("Arquivo vazio ou ilegível.");
+          currentData = jsonData;
+          filterData();
+        } catch (err) {
+          addMessage("Erro: " + err.message, 'bot');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      addMessage("📄 Arquivo recebido: <strong>" + file.name + "</strong>", 'user');
     }
 
-    // Inicialização quando DOM carregar
-    document.addEventListener('DOMContentLoaded', function() {
-      // Event listener para upload de arquivo
-      const fileInput = document.getElementById('fileInput');
-      const userInput = document.getElementById('userInput');
-      const sendBtn = document.getElementById('sendBtn');
+    function filterData() {
+      const headers = currentData[0];
+      const rows = currentData.slice(1);
 
-      fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+      const cepCols = [];
+      headers.forEach((h, i) => {
+        if (typeof h === 'string' && /cep|endereço|address/i.test(h)) cepCols.push(i);
+      });
+      if (!cepCols.length) cepCols.push(...headers.keys());
 
-        console.log('Arquivo selecionado:', file.name);
-
-        const ext = file.name.split('.').pop().toLowerCase();
-        
-        if (!['xlsx', 'csv', 'txt'].includes(ext)) {
-          alert('Tipo de arquivo não suportado. Use .xlsx, .csv ou .txt');
-          return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = function(ev) {
-          try {
-            if (ext === 'xlsx') {
-              if (typeof XLSX === 'undefined') {
-                alert('Biblioteca XLSX não carregada. Recarregue a página e tente novamente.');
-                return;
-              }
-              const wb = XLSX.read(ev.target.result, { type: 'binary' });
-              const ws = wb.Sheets[wb.SheetNames[0]];
-              conteudoArquivo = XLSX.utils.sheet_to_csv(ws, { trim: true });
-            } else {
-              conteudoArquivo = ev.target.result;
-            }
-            
-            userInput.value = `📎 Arquivo carregado: ${file.name} (${Math.round(file.size/1024)}KB)`;
-            console.log('Conteúdo do arquivo carregado:', conteudoArquivo.substring(0, 200) + '...');
-            
-            // Reset do input file
-            fileInput.value = '';
-          } catch (error) {
-            console.error('Erro ao carregar arquivo:', error);
-            alert('Erro ao carregar arquivo: ' + error.message);
-          }
-        };
-
-        reader.onerror = function() {
-          console.error('Erro ao ler arquivo');
-          alert('Erro ao ler o arquivo. Tente novamente.');
-        };
-
-        if (ext === 'xlsx') {
-          reader.readAsBinaryString(file);
-        } else {
-          reader.readAsText(file, 'UTF-8');
-        }
+      filteredData = rows.filter(row => {
+        return cepCols.some(i => {
+          const val = String(row[i] || '').replace(/\D/g, '');
+          return prefixos.some(p => val.startsWith(p));
+        });
       });
 
-      // Enter para processar
-      userInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-          processData();
-        }
-      });
+      displayResults(headers, filteredData);
+    }
 
-      // Click no botão processar
-      sendBtn.addEventListener('click', processData);
+    function processExcelCell(cell, header) {
+      if (typeof header === 'string') {
+        const h = header.toLowerCase();
+        if ((h.includes('início') || h.includes('inicio') || h.includes('final') || h.includes('hora')) &&
+          typeof cell === 'number' && cell >= 0 && cell < 1) {
+          const totalMinutes = Math.round(cell * 24 * 60);
+          const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+          const mm = String(totalMinutes % 60).padStart(2, '0');
+          return `${hh}:${mm}`;
+        }
+      }
+      return cell;
+    }
+
+    function displayResults(headers, data) {
+      const stats = document.createElement('div');
+      stats.className = 'stats';
+      stats.style.display = 'block';
+      stats.innerHTML = `✅ <strong>Filtragem concluída!</strong><br>📊 Total de obras válidas: <strong>${data.length}</strong>`;
+      addMessage(stats.outerHTML, 'bot');
+
+      if (data.length === 0) {
+        addMessage("Nenhuma obra encontrada nos CEPs da região.", 'bot');
+        return;
+      }
+
+      // Montar tabela
+      let tabelaHtml = `
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>${headers.map(h => `<th>${h || 'Coluna'}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${data.map(row => `
+                <tr>
+                  ${headers.map((h, i) => {
+                    let val = processExcelCell(row[i] || '', h);
+                    if (/cep/i.test(h)) val = `<span class="cep-valid">${val}</span>`;
+                    return `<td>${val}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <button class="download" onclick="exportResults()">📥 Exportar Resultados</button>
+        </div>
+      `;
+
+      addMessage(tabelaHtml, 'bot');
+    }
+
+    function exportResults() {
+      if (!filteredData.length) return;
+      const headers = currentData[0];
+      const processed = filteredData.map(row =>
+        row.map((cell, i) => processExcelCell(cell, headers[i]))
+      );
+      const exportArray = [headers, ...processed];
+      const ws = XLSX.utils.aoa_to_sheet(exportArray);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Obras Regiao');
+      XLSX.writeFile(wb, `obras_edp_regiao_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
+    }
+
+    // Enter para processar
+    userInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') {
+        if (!userInput.value.trim()) return;
+        addMessage(userInput.value, 'user');
+        // Simular processamento de texto colado como CSV/TXT
+        currentData = [userInput.value.split('\t')]; // simulação simples
+        filteredData = [userInput.value.split('\t')]; // simulação simples
+        displayResults(['Dados colados'], filteredData);
+        userInput.value = '';
+      }
+    });
+
+    sendBtn.addEventListener('click', () => {
+      if (!userInput.value.trim()) return;
+      addMessage(userInput.value, 'user');
+      currentData = [userInput.value.split('\t')];
+      filteredData = [userInput.value.split('\t')];
+      displayResults(['Dados colados'], filteredData);
+      userInput.value = '';
     });
   </script>
 </body>
